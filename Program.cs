@@ -6,7 +6,7 @@ class Program
 {
     static void Main(string[] args)
     {
-        Console.WriteLine("=== GENERADOR DE QR A PNG ===");
+        Console.WriteLine("=== GENERADOR DE QR: DUAL MODE (Transparente + Sólido) ===");
         Console.Write("Introduce la URL: ");
         string? url = Console.ReadLine();
 
@@ -14,34 +14,45 @@ class Program
 
         try
         {
-            // 1. Generamos la base del QR
+            // 1. Configurar rutas a la raíz del proyecto
+            string rutaEjecucion = AppDomain.CurrentDomain.BaseDirectory;
+            string? rutaRaiz = Directory.GetParent(rutaEjecucion)?.Parent?.Parent?.FullName ?? rutaEjecucion;
+
+            string pathTransparente = Path.Combine(rutaRaiz, "qr_sin_fondo.png");
+            string pathConFondo = Path.Combine(rutaRaiz, "qr_con_fondo.png");
+
             using (var qrGenerator = new QRCodeGenerator())
             {
                 var qrCodeData = qrGenerator.CreateQrCode(url, QRCodeGenerator.ECCLevel.H);
-
-                // 2. Usamos PngByteQRCode
                 var qrCode = new PngByteQRCode(qrCodeData);
 
-                // 3. Llamada simplificada sin nombres de parámetros (Posicional)
-                // Parámetros: (pixelsPerModule, darkColorRgb, lightColorRgb)
-                byte[] qrBytes = qrCode.GetGraphic(
-                    20,                             // Tamaño de cada punto
-                    new byte[] { 0, 0, 0 },         // Color negro (R, G, B)
-                    new byte[] { 255, 255, 255 }    // Color blanco (R, G, B)
-                );
+                // --- GENERAR VERSIÓN SIN FONDO (PNG Transparente) ---
+                // Negro sólido {0,0,0,255} y Fondo transparente {255,255,255,0}
+                byte[] bytesTrans = qrCode.GetGraphic(20, 
+                    new byte[] { 0, 0, 0, 255 }, 
+                    new byte[] { 255, 255, 255, 0 });
+                File.WriteAllBytes(pathTransparente, bytesTrans);
 
-                // 4. Guardar archivo
-                File.WriteAllBytes("codigo_qr.png", qrBytes);
-                
-                Console.WriteLine("\nArchivo 'codigo_qr.png' generado con éxito.");
+                // --- GENERAR VERSIÓN CON FONDO (Como un JPG) ---
+                // Negro sólido {0,0,0,255} y Fondo blanco sólido {255,255,255,255}
+                byte[] bytesFondo = qrCode.GetGraphic(20, 
+                    new byte[] { 0, 0, 0, 255 }, 
+                    new byte[] { 255, 255, 255, 255 });
+                File.WriteAllBytes(pathConFondo, bytesFondo);
+
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("\n✅ ¡Archivos actualizados en la raíz!");
+                Console.ResetColor();
+                Console.WriteLine($"1. Transparente: {pathTransparente}");
+                Console.WriteLine($"2. Con fondo:    {pathConFondo}");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
+            Console.WriteLine($"❌ Error: {ex.Message}");
         }
 
-        Console.WriteLine("Presiona Enter para cerrar...");
+        Console.WriteLine("\nPresiona Enter para finalizar.");
         Console.ReadLine();
     }
 }
